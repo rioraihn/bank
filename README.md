@@ -8,9 +8,8 @@ A complete banking service built with Go following Clean Architecture principles
 - [Architecture](#-architecture)
 - [Prerequisites](#-prerequisites)
 - [Quick Start](#-quick-start)
-- [Database Setup](#-database-setup)
-- [Project Structure](#-project-structure)
-- [API Documentation](#-api-documentation)
+- [Project Structure](#project-structure)
+- [API Documentation](#api-documentation)
 - [Testing](#-testing)
 - [Configuration](#-configuration)
 - [Development](#-development)
@@ -24,8 +23,10 @@ A complete banking service built with Go following Clean Architecture principles
 - **🏥 Health Checks** - Service health monitoring
 - **📈 Versioned API** - Both legacy and versioned endpoints
 - **🧪 Comprehensive Testing** - Unit tests and integration tests
-- **🗄️ Database Support** - PostgreSQL with proper schema
+- **🗄️ In-Memory Storage** - Fast, zero-setup persistence
 - **🏗️ Clean Architecture** - Proper separation of concerns
+- **⚙️ Environment Configuration** - `.env` file support
+- **🔄 Graceful Shutdown** - Clean server termination
 
 ## 🏛️ Architecture
 
@@ -34,7 +35,7 @@ A complete banking service built with Go following Clean Architecture principles
 │                    Infrastructure Layer                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
 │  │   HTTP Handlers │  │  HTTP Routing   │  │ Persistence │ │
-│  │                 │  │                 │  │   (Postgres) │ │
+│  │                 │  │                 │  │   (Memory)   │ │
 │  └─────────────────┘  └─────────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -60,8 +61,6 @@ A complete banking service built with Go following Clean Architecture principles
 ## 🚀 Prerequisites
 
 - **Go 1.21+** - Go programming language
-- **PostgreSQL 13+** - Database server
-- **Docker & Docker Compose** - Containerization (optional)
 - **Git** - Version control
 
 ## ⚡ Quick Start
@@ -77,76 +76,36 @@ cd bank
 go mod download
 ```
 
-### 3. Setup Database
-See [Database Setup](#database-setup) section below
+### 3. Setup Environment
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env file with your preferred settings
+# The application will automatically load .env file
+```
 
 ### 4. Build and Run
 ```bash
 # Build the application
 go build -o bank-service ./cmd/service
 
-# Run with default settings (in-memory mode)
+# Run the application
 ./bank-service
-
-# Or run with specific configuration
-./bank-service --port=8080 --debug=true
 ```
 
 ### 5. Test the API
+The application starts with empty memory repositories. You need to create wallets first:
+
 ```bash
 # Health check
 curl http://localhost:8080/health
 
-# Check balance
-curl "http://localhost:8080/balance?user_id=550e8400-e29b-41d4-a716-446655440000"
-
-# Withdraw money
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"user_id":"550e8400-e29b-41d4-a716-446655440000","amount":20000}' \
-  http://localhost:8080/withdraw
+# Note: The following will return "wallet not found" until you create wallets
+curl "http://localhost:8080/balance?user_id=your-user-id"
 ```
 
-## 🗄️ Database Setup
-
-### Using PostgreSQL (Recommended)
-
-#### 1. Start PostgreSQL
-```bash
-# Using Docker (recommended)
-docker run --name postgres-bank \
-  -e POSTGRES_USER=rio \
-  -e POSTGRES_PASSWORD=rio \
-  -e POSTGRES_DB=postgres \
-  -p 5433:5432 \
-  -d postgres:13
-
-# Or start your existing PostgreSQL instance
-```
-
-#### 2. Create Database Schema
-Execute the SQL file in your DataGrip or any PostgreSQL client:
-
-```sql
--- File: database/schema.sql
--- Or run directly:
-psql -h localhost -p 5433 -U rio -d postgres -f database/schema.sql
-```
-
-#### 3. Database Configuration
-The application will automatically connect to PostgreSQL using:
-- **Host**: localhost
-- **Port**: 5433
-- **User**: rio
-- **Password**: rio
-- **Database**: postgres
-
-#### 4. Connection String
-```
-postgresql://rio:rio@localhost:5433/postgres
-```
-
-### Using In-Memory (Testing)
-By default, the application uses in-memory repositories for quick testing without database setup.
+**Important**: The application no longer includes pre-populated test data. You'll need to create your own wallets and perform transactions via the API.
 
 ## 📁 Project Structure
 
@@ -154,9 +113,10 @@ By default, the application uses in-memory repositories for quick testing withou
 bank/
 ├── cmd/service/                    # Application entry point
 │   ├── main.go                     # Main application
-│   └── config.go                   # Configuration helpers
-├── database/
-│   └── schema.sql                  # Database schema
+│   └── mocks_test.go               # Test mocks
+├── .env.example                    # Environment template
+├── .env                            # Your environment settings (ignored by Git)
+├── .gitignore                      # Git ignore rules
 ├── internal/
 │   ├── domain/
 │   │   ├── entity/                 # Business entities
@@ -175,12 +135,13 @@ bank/
 │   │   └── mocks/                  # Reusable test mocks
 │   ├── application/
 │   │   ├── service/                # Service implementations
-│   │   │   └── wallet_service.go
+│   │   │   ├── wallet_service.go
+│   │   │   └── mocks_test.go       # Service test mocks
 │   │   ├── usecase/                # Use case implementations
-│   │   │   └── withdraw_usecase.go
+│   │   │   ├── withdraw_usecase.go
+│   │   │   └── mocks_test.go       # Use case test mocks
 │   │   └── dto/                    # Data transfer objects
-│   │       ├── balance_response.go
-│   │       └── withdraw_response.go
+│   │       └── wallet_dto.go
 │   └── infrastructure/
 │       ├── http/                   # HTTP layer
 │       │   ├── handlers/
@@ -188,10 +149,9 @@ bank/
 │       │   │   └── withdraw_handler.go
 │       │   ├── server.go
 │       │   └── responses.go
-│       └── persistence/            # Data persistence
-│           ├── postgres_wallet_repository.go
-│           ├── postgres_transaction_repository.go
-│           └── memory_*.go          # In-memory implementations
+│       └── persistence/            # Data persistence (in-memory)
+│           ├── memory_wallet_repository.go
+│           └── memory_transaction_repository.go
 ├── README.md                       # This file
 └── go.mod                          # Go modules
 ```
@@ -227,11 +187,19 @@ GET /api/v1/balance?user_id={uuid}
 **Query Parameters:**
 - `user_id` (required): UUID of the user
 
-**Response:**
+**Response (Success):**
 ```json
 {
   "user_id": "550e8400-e29b-41d4-a716-446655440000",
   "balance": 100000
+}
+```
+
+**Response (Error - Wallet Not Found):**
+```json
+{
+  "error": "wallet_not_found",
+  "message": "Wallet not found"
 }
 ```
 
@@ -302,6 +270,9 @@ go test -v -cover ./...
 # Domain layer tests
 go test ./internal/domain/...
 
+# Application layer tests
+go test ./internal/application/...
+
 # Integration tests
 go test ./internal/infrastructure/http/...
 ```
@@ -318,31 +289,54 @@ go test ./internal/infrastructure/http/...
 
 ## ⚙️ Configuration
 
+### Environment Variables
+
+The application uses a `.env` file for configuration. Copy `.env.example` to `.env` and modify as needed:
+
+**Priority Order:**
+1. **Command line flags** (highest priority)
+2. **Environment variables** from `.env` file
+3. **System environment variables**
+4. **Default values** (lowest priority)
+
+#### Configuration Options
+```bash
+# .env file
+
+# Server Configuration
+SERVER_HOST=localhost          # Server host (default: 0.0.0.0)
+SERVER_PORT=8080              # Server port (default: 8080)
+
+# Logging Configuration
+DEBUG=false                   # Enable debug logging (default: false)
+```
+
 ### Command Line Flags
 ```bash
 ./bank-service --help
 
 # Available flags:
---host     Server host (default: 0.0.0.0)
---port     Server port (default: 8080)
---debug    Enable debug logging (default: false)
+--host     Server host (overrides .env file)
+--port     Server port (overrides .env file)
+--debug    Enable debug logging (overrides .env file)
 ```
 
-### Environment Variables
+### Examples
+
+**Development (local only):**
 ```bash
-export SERVER_HOST=0.0.0.0
-export SERVER_PORT=8080
-export DEBUG=true
+# .env
+SERVER_HOST=localhost
+SERVER_PORT=8080
+DEBUG=true
 ```
 
-### Database Configuration
-Currently hardcoded to:
-```go
-host: localhost
-port: 5433
-user: rio
-password: rio
-database: postgres
+**Production (all interfaces):**
+```bash
+# .env
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8080
+DEBUG=false
 ```
 
 ## 🔧 Development
@@ -361,8 +355,9 @@ go build -ldflags="-s -w" -o bank-service ./cmd/service
 # With debug logging
 go run ./cmd/service --debug=true
 
-# Or with live reload using air
-air
+# Or using .env file
+echo "DEBUG=true" > .env
+go run ./cmd/service
 ```
 
 ### Linting and Formatting
@@ -377,14 +372,22 @@ golangci-lint run
 staticcheck ./...
 ```
 
-### Database Migrations
-For production use, consider adding migration support:
-```bash
-# Install migration tool
-go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+## 🔄 Graceful Shutdown
 
-# Run migrations
-migrate -path database/migrations -database "postgresql://rio:rio@localhost:5433/postgres" up
+The application supports graceful shutdown for production use:
+
+- **Signal Handling**: Responds to `Ctrl+C` and `kill` commands
+- **Request Completion**: Finishes processing existing requests (30-second timeout)
+- **Resource Cleanup**: Properly closes connections and releases resources
+- **Zero Data Loss**: Ensures database operations complete
+
+**Usage:**
+```bash
+# Start server
+./bank-service
+
+# Graceful shutdown (Ctrl+C)
+# OR kill <pid>
 ```
 
 ## 🐳 Docker Support
@@ -400,6 +403,7 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 COPY --from=builder /app/bank-service .
+COPY --from=builder /app/.env.example .env
 EXPOSE 8080
 CMD ["./bank-service"]
 ```
@@ -408,28 +412,16 @@ CMD ["./bank-service"]
 ```yaml
 version: '3.8'
 services:
-  postgres:
-    image: postgres:13
-    environment:
-      POSTGRES_USER: rio
-      POSTGRES_PASSWORD: rio
-      POSTGRES_DB: postgres
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   bank-service:
     build: .
     ports:
       - "8080:8080"
-    depends_on:
-      - postgres
     environment:
-      - DATABASE_URL=postgresql://rio:rio@postgres:5432/postgres
-
-volumes:
-  postgres_data:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - DEBUG=false
+    volumes:
+      - ./your-.env-file:/app/.env:ro
 ```
 
 ## 📊 Monitoring and Observability
@@ -443,50 +435,36 @@ curl http://localhost:8080/health
 The application provides structured logging with:
 - Request/Response logging
 - Error logging with stack traces
-- Debug mode for development
-
-### Metrics
-Consider adding Prometheus metrics for production:
-- Request count and duration
-- Transaction counts
-- Error rates
+- Debug mode for development (shows file and line numbers)
 
 ## 🔒 Security Considerations
 
 - **Input Validation**: All inputs are validated using struct tags
-- **SQL Injection Protection**: Uses parameterized queries
 - **Error Handling**: Sensitive information not exposed in error messages
-- **CORS**: Configure CORS headers for production
-- **Rate Limiting**: Consider adding rate limiting for production
+- **Environment Variables**: Secrets stored in `.env` file (ignored by Git)
+- **Graceful Shutdown**: Prevents data corruption during termination
 
 ## 🚀 Production Deployment
 
-### Environment Variables
+### Environment Setup
 ```bash
-export SERVER_HOST=0.0.0.0
-export SERVER_PORT=8080
-export DATABASE_URL=postgresql://rio:rio@localhost:5433/postgres
-export LOG_LEVEL=info
-export GIN_MODE=release
-```
+# Copy and configure environment
+cp .env.example .env
+# Edit .env with production settings
 
-### Building for Production
-```bash
 # Build optimized binary
 go build -ldflags="-s -w" -o bank-service ./cmd/service
 
-# Or use Makefile
-make build
+# Run with systemd or process manager
+./bank-service
 ```
 
-### Running in Production
+### Production Configuration
 ```bash
-# Create user
-useradd -r -s /bin/false bankuser
-
-# Run with systemd
-sudo systemctl start bank-service
-sudo systemctl enable bank-service
+# .env for production
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8080
+DEBUG=false
 ```
 
 ## 🤝 Contributing
@@ -512,15 +490,21 @@ lsof -i :8080
 
 # Kill the process
 kill -9 <PID>
+
+# Or change port in .env
+echo "SERVER_PORT=8081" >> .env
 ```
 
-**2. Database connection failed**
+**2. Environment variables not working**
 ```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
+# Ensure .env file exists
+cp .env.example .env
 
-# Test connection
-psql -h localhost -p 5433 -U rio -d postgres
+# Check .env file format
+cat .env
+
+# Verify application loads .env
+./bank-service  # Should show "No .env file found" message if missing
 ```
 
 **3. Build errors**
@@ -534,9 +518,12 @@ go clean -cache
 go build -o bank-service ./cmd/service
 ```
 
+**4. Wallet not found errors**
+The application starts with empty repositories. You need to create wallets via API before checking balances or making withdrawals.
+
 ### Getting Help
 
-- Check the logs: `./bank-service --debug=true`
+- Check the logs: `DEBUG=true ./bank-service`
 - Review the test files for usage examples
 - Check the GitHub Issues for known problems
 
