@@ -1,11 +1,9 @@
 package persistence
 
 import (
+	"bank/internal/domain/entity"
 	"context"
 	"database/sql"
-	"fmt"
-
-	"bank/internal/domain/entity"
 )
 
 type TransactionRepository struct {
@@ -24,7 +22,7 @@ func (r *TransactionRepository) InsertTransaction(ctx context.Context, tx *sql.T
 		INSERT INTO transactions (id, wallet_id, amount, transaction_type, created_at)
 		VALUES ($1, $2, $3, $4, NOW());
 	`
-	fmt.Println(query)
+
 	_, err := tx.ExecContext(ctx, query,
 		transaction.ID().String(),
 		transaction.WalletID().String(),
