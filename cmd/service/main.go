@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -16,8 +17,10 @@ import (
 
 	appservice "bank/internal/application/service"
 	appusecase "bank/internal/application/usecase"
+	"bank/internal/domain/repository"
 	"bank/internal/domain/service"
 	"bank/internal/domain/usecase"
+	"bank/internal/infrastructure/database"
 	infrahttp "bank/internal/infrastructure/http"
 	"bank/internal/infrastructure/persistence"
 )
@@ -32,17 +35,19 @@ const (
 
 // AppConfig holds the application configuration
 type AppConfig struct {
-	ServerHost string
-	ServerPort string
-	Debug      bool
+	ServerHost             string
+	ServerPort             string
+	Debug                  bool
+	FailFastOnDBConnection bool // If true, app fails to start if DB is not connected
 }
 
 // Container holds all application dependencies
 type Container struct {
-	WalletRepo      *persistence.MemoryWalletRepository
-	TransactionRepo *persistence.MemoryTransactionRepository
+	DB              *sql.DB
+	WalletRepo      repository.WalletRepository
+	TransactionRepo repository.TransactionRepository
 	WithdrawUseCase usecase.WithdrawUseCase
-	WalletService   service.WalletService
+	BalanceService  service.BalanceService
 	Server          *infrahttp.Server
 }
 
@@ -58,6 +63,8 @@ func main() {
 
 	container := setupContainer()
 
+	log.Printf("✅ Database connection established and migrations completed")
+
 	if err := runApplication(container, config); err != nil {
 		log.Fatalf("Failed to run application: %v", err)
 	}
@@ -69,12 +76,14 @@ func parseFlags() *AppConfig {
 	hostFlag := flag.String("host", "", "Server host")
 	portFlag := flag.String("port", "", "Server port")
 	debugFlag := flag.Bool("debug", false, "Enable debug logging")
+	failFastFlag := flag.Bool("fail-fast-db", true, "Fail to start if database connection fails")
 
 	flag.Parse()
 
 	config.ServerHost = getStringValue(*hostFlag, "SERVER_HOST", DefaultServerHost)
 	config.ServerPort = getStringValue(*portFlag, "SERVER_PORT", DefaultServerPort)
 	config.Debug = *debugFlag || getEnvBool("DEBUG", false)
+	config.FailFastOnDBConnection = *failFastFlag || getEnvBool("FAIL_FAST_DB", true)
 
 	return config
 }
@@ -107,19 +116,30 @@ func setupLogging(debug bool) {
 }
 
 func setupContainer() *Container {
-	walletRepo := persistence.NewMemoryWalletRepository()
-	transactionRepo := persistence.NewMemoryTransactionRepository()
+	// Connect to real database
+	dbConfig := database.NewDatabaseConfig()
 
-	withdrawUseCase := appusecase.NewWithdrawUseCase(walletRepo, transactionRepo)
-	walletService := appservice.NewWalletService(walletRepo)
+	log.Printf("🔌 Connecting to database: %s:%s/%s", dbConfig.Host, dbConfig.Port, dbConfig.DBName)
+	db, err := database.ConnectToDatabase(dbConfig)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect to database: %v", err)
+	}
 
-	server := infrahttp.NewServer(withdrawUseCase, walletService)
+	// Use real database repositories with SQL query execution
+	walletRepo := persistence.NewWalletRepository(db)
+	transactionRepo := persistence.NewTransactionRepository(db)
+
+	withdrawUseCase := appusecase.NewWithdrawUseCase(walletRepo, transactionRepo, db)
+	BalanceService := appservice.NewBalanceUseCase(walletRepo)
+
+	server := infrahttp.NewServer(withdrawUseCase, BalanceService)
 
 	return &Container{
+		DB:              db,
 		WalletRepo:      walletRepo,
 		TransactionRepo: transactionRepo,
 		WithdrawUseCase: withdrawUseCase,
-		WalletService:   walletService,
+		BalanceService:  BalanceService,
 		Server:          server,
 	}
 }
@@ -138,13 +158,8 @@ func runApplication(container *Container, config *AppConfig) error {
 
 	go func() {
 		log.Printf("Starting wallet service on %s", serverAddr)
-		log.Printf("Health check: http://%s/health", serverAddr)
-		log.Printf("API Documentation:")
 		log.Printf("  Withdraw: POST http://%s/withdraw", serverAddr)
 		log.Printf("  Balance:  GET  http://%s/balance?user_id=<uuid>", serverAddr)
-		log.Printf("Versioned API:")
-		log.Printf("  Withdraw: POST http://%s/api/v1/withdraw", serverAddr)
-		log.Printf("  Balance:  GET  http://%s/api/v1/balance?user_id=<uuid>", serverAddr)
 
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- fmt.Errorf("server failed to start: %w", err)

@@ -13,14 +13,14 @@ import (
 )
 
 type BalanceHandler struct {
-	walletService service.WalletService
-	validator     *validator.Validate
+	balanceService service.BalanceService
+	validator      *validator.Validate
 }
 
-func NewBalanceHandler(walletService service.WalletService) *BalanceHandler {
+func NewBalanceHandler(walletService service.BalanceService) *BalanceHandler {
 	return &BalanceHandler{
-		walletService: walletService,
-		validator:     validator.New(),
+		balanceService: walletService,
+		validator:      validator.New(),
 	}
 }
 
@@ -57,35 +57,14 @@ func (h *BalanceHandler) HandleGetBalance(w http.ResponseWriter, r *http.Request
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	response, err := h.walletService.GetBalanceByUserID(ctx, userIDVO)
+	response, err := h.balanceService.GetBalance(ctx, userIDVO)
 	if err != nil {
-		switch {
-		case err.Error() == "invalid user ID format":
-			fallthrough
-		case err.Error() == "user ID is required":
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, ErrorResponse{
-				Error:   "validation_error",
-				Message: err.Error(),
-			})
-			return
-
-		case err.Error() == "wallet not found":
-			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, ErrorResponse{
-				Error:   "wallet_not_found",
-				Message: "No wallet found for this user",
-			})
-			return
-
-		default:
-			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, ErrorResponse{
-				Error:   "internal_error",
-				Message: "An unexpected error occurred",
-			})
-			return
-		}
+		render.Status(r, http.StatusInternalServerError)
+		render.JSON(w, r, ErrorResponse{
+			Error:   err.Error(),
+			Message: "An unexpected error occurred",
+		})
+		return
 	}
 
 	render.Status(r, http.StatusOK)

@@ -2,16 +2,18 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"bank/internal/domain/entity"
 	"bank/internal/domain/valueobject"
 )
 
 type WalletRepository interface {
-	FindByUserID(ctx context.Context, userID valueobject.UserID) (*entity.Wallet, error)
-	Update(ctx context.Context, wallet *entity.Wallet) error
+	GetWallet(ctx context.Context, userID valueobject.UserID) (*entity.Wallet, error)
+	GetWalletForUpdate(ctx context.Context, tx *sql.Tx, userID valueobject.UserID) (*entity.Wallet, error)
+	UpdateWalletBalance(ctx context.Context, tx *sql.Tx, walletID valueobject.UserID, newBalance int64) error
 }
 
 type TransactionRepository interface {
-	Save(ctx context.Context, transaction *entity.Transaction) error
+	InsertTransaction(ctx context.Context, tx *sql.Tx, transaction *entity.Transaction) error
 }

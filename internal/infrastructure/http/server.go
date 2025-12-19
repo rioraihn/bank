@@ -7,7 +7,6 @@ import (
 
 	"bank/internal/domain/service"
 	"bank/internal/domain/usecase"
-
 	"github.com/go-chi/render"
 	"github.com/gorilla/mux"
 )
@@ -20,12 +19,12 @@ type Server struct {
 
 func NewServer(
 	withdrawUseCase usecase.WithdrawUseCase,
-	walletService service.WalletService,
+	balanceService service.BalanceService,
 ) *Server {
 	server := &Server{
 		router:          mux.NewRouter(),
 		withdrawHandler: NewWithdrawHandler(withdrawUseCase),
-		balanceHandler:  NewBalanceHandler(walletService),
+		balanceHandler:  NewBalanceHandler(balanceService),
 	}
 
 	server.setupRoutes()
@@ -42,13 +41,6 @@ func (s *Server) setupRoutes() {
 
 	// Health check endpoint
 	s.router.HandleFunc("/health", s.healthHandler).Methods("GET")
-
-	// API routes with subrouter
-	api := s.router.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/withdraw", s.withdrawHandler.HandleWithdraw).Methods("POST")
-	api.HandleFunc("/balance", s.balanceHandler.HandleGetBalance).Methods("GET")
-
-	// Legacy routes (for backwards compatibility with PRD)
 	s.router.HandleFunc("/withdraw", s.withdrawHandler.HandleWithdraw).Methods("POST")
 	s.router.HandleFunc("/balance", s.balanceHandler.HandleGetBalance).Methods("GET")
 }
