@@ -24,27 +24,14 @@ func NewWithdrawHandler(withdrawUseCase usecase.WithdrawUseCase) *WithdrawHandle
 	}
 }
 
-// WithdrawRequest represents the HTTP request for withdraw
 type WithdrawRequest struct {
 	UserID string `json:"user_id" validate:"required,uuid"`
 	Amount int64  `json:"amount" validate:"required,gt=0"`
 }
 
-// @Summary Withdraw funds from a wallet
-// @Description Withdraw a specified amount from a user's wallet
-// @Tags wallet
-// @Accept json
-// @Produce json
-// @Param request body WithdrawRequest true "Withdraw request"
-// @Success 200 {object} dto.WithdrawResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
-// @Router /withdraw [post]
 func (h *WithdrawHandler) HandleWithdraw(w http.ResponseWriter, r *http.Request) {
 	var req WithdrawRequest
 
-	// Parse and validate request
 	if err := render.DecodeJSON(r.Body, &req); err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, ErrorResponse{
@@ -54,7 +41,6 @@ func (h *WithdrawHandler) HandleWithdraw(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Validate request struct
 	if err := h.validator.Struct(&req); err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, ErrorResponse{
@@ -64,7 +50,6 @@ func (h *WithdrawHandler) HandleWithdraw(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create domain value objects
 	userIDVO, err := valueobject.NewUserID(req.UserID)
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -85,14 +70,11 @@ func (h *WithdrawHandler) HandleWithdraw(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create context with timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Execute use case
 	response, err := h.withdrawUseCase.Withdraw(ctx, userIDVO, amountVO)
 	if err != nil {
-		// Handle different types of errors
 		switch {
 		case err.Error() == "invalid user ID format":
 			fallthrough
@@ -130,7 +112,6 @@ func (h *WithdrawHandler) HandleWithdraw(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Return success response
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, response)
 }

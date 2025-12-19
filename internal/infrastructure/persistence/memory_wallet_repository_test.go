@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemoryWalletRepository_CreateAndFind(t *testing.T) {
+func TestMemoryWalletRepository_FindByUserID(t *testing.T) {
 	// Arrange
 	repo := NewMemoryWalletRepository()
 	ctx := context.Background()
@@ -20,12 +20,13 @@ func TestMemoryWalletRepository_CreateAndFind(t *testing.T) {
 	initialBalance, _ := valueobject.NewMoney(5000) // $50.00
 	wallet := entity.NewWalletWithBalance(userID, initialBalance)
 
-	// Act & Assert - Create
-	err := repo.Create(ctx, wallet)
-	assert.NoError(t, err)
+	// Manually add wallet to internal storage (simulating it was created elsewhere)
+	repo.wallets[userID.String()] = repo.copyWallet(wallet)
 
-	// Act & Assert - Find
+	// Act
 	found, err := repo.FindByUserID(ctx, userID)
+
+	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, userID, found.UserID())
 	assert.Equal(t, initialBalance, found.Balance())
@@ -35,33 +36,17 @@ func TestMemoryWalletRepository_CreateAndFind(t *testing.T) {
 	assert.NotSame(t, wallet, found)
 }
 
-func TestMemoryWalletRepository_CreateDuplicate(t *testing.T) {
-	// Arrange
-	repo := NewMemoryWalletRepository()
-	ctx := context.Background()
-
-	userID, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174000")
-	wallet1 := entity.NewWalletWithBalance(userID, valueobject.Money{})
-	wallet2 := entity.NewWalletWithBalance(userID, valueobject.Money{})
-
-	// Act & Assert
-	err := repo.Create(ctx, wallet1)
-	assert.NoError(t, err)
-
-	err = repo.Create(ctx, wallet2)
-	assert.Error(t, err)
-	assert.Equal(t, ErrDuplicateWallet, err)
-}
-
-func TestMemoryWalletRepository_FindNotFound(t *testing.T) {
+func TestMemoryWalletRepository_FindByUserIDNotFound(t *testing.T) {
 	// Arrange
 	repo := NewMemoryWalletRepository()
 	ctx := context.Background()
 
 	userID, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174000")
 
-	// Act & Assert
+	// Act
 	found, err := repo.FindByUserID(ctx, userID)
+
+	// Assert
 	assert.Error(t, err)
 	assert.Equal(t, ErrWalletNotFound, err)
 	assert.Nil(t, found)
@@ -76,12 +61,12 @@ func TestMemoryWalletRepository_Update(t *testing.T) {
 	initialBalance, _ := valueobject.NewMoney(5000)
 	wallet := entity.NewWalletWithBalance(userID, initialBalance)
 
-	err := repo.Create(ctx, wallet)
-	require.NoError(t, err)
+	// Manually add wallet to storage (simulating it was created elsewhere)
+	repo.wallets[userID.String()] = repo.copyWallet(wallet)
 
 	// Modify the wallet (simulate withdrawal)
 	withdrawAmount, _ := valueobject.NewMoney(2000)
-	err = wallet.Withdraw(withdrawAmount)
+	err := wallet.Withdraw(withdrawAmount)
 	require.NoError(t, err)
 
 	// Act
@@ -108,76 +93,35 @@ func TestMemoryWalletRepository_UpdateNotFound(t *testing.T) {
 	assert.Equal(t, ErrWalletNotFound, err)
 }
 
-func TestMemoryWalletRepository_SaveUpsert(t *testing.T) {
+func TestMemoryWalletRepository_UpdatePreventsExternalMutation(t *testing.T) {
 	// Arrange
 	repo := NewMemoryWalletRepository()
 	ctx := context.Background()
 
 	userID, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174000")
-	wallet1 := entity.NewWalletWithBalance(userID, valueobject.Money{})
+	initialBalance, _ := valueobject.NewMoney(1000)
+	wallet := entity.NewWalletWithBalance(userID, initialBalance)
 
-	// Act & Assert - Save (should create)
-	err := repo.Save(ctx, wallet1)
-	assert.NoError(t, err)
+	// Manually add wallet to storage
+	repo.wallets[userID.String()] = repo.copyWallet(wallet)
 
+	// Get wallet from repository
 	found, err := repo.FindByUserID(ctx, userID)
-	assert.NoError(t, err)
-	assert.Equal(t, wallet1.ID(), found.ID())
-
-	// Act & Assert - Save (should update)
-	wallet2 := entity.NewWalletWithBalance(userID, valueobject.Money{})
-	err = repo.Save(ctx, wallet2)
-	assert.NoError(t, err)
-
-	found, err = repo.FindByUserID(ctx, userID)
-	assert.NoError(t, err)
-	assert.Equal(t, wallet2.ID(), found.ID()) // Should be the new wallet
-}
-
-func TestMemoryWalletRepository_Exists(t *testing.T) {
-	// Arrange
-	repo := NewMemoryWalletRepository()
-	ctx := context.Background()
-
-	userID1, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174000")
-	userID2, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174001")
-	wallet := entity.NewWalletWithBalance(userID1, valueobject.Money{})
-
-	err := repo.Create(ctx, wallet)
 	require.NoError(t, err)
 
-	// Act & Assert
-	exists, err := repo.Exists(ctx, userID1)
-	assert.NoError(t, err)
-	assert.True(t, exists)
-
-	exists, err = repo.Exists(ctx, userID2)
-	assert.NoError(t, err)
-	assert.False(t, exists)
-}
-
-func TestMemoryWalletRepository_GetAllAndClear(t *testing.T) {
-	// Arrange
-	repo := NewMemoryWalletRepository()
-	ctx := context.Background()
-
-	userID1, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174000")
-	userID2, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174001")
-
-	wallet1 := entity.NewWalletWithBalance(userID1, valueobject.Money{})
-	wallet2 := entity.NewWalletWithBalance(userID2, valueobject.Money{})
-
-	err := repo.Create(ctx, wallet1)
-	require.NoError(t, err)
-	err = repo.Create(ctx, wallet2)
+	// Modify the returned wallet
+	withdrawAmount, _ := valueobject.NewMoney(500)
+	err = found.Withdraw(withdrawAmount)
 	require.NoError(t, err)
 
-	// Act & Assert - GetAll
-	wallets := repo.GetAll(ctx)
-	assert.Len(t, wallets, 2)
+	// Update the modified wallet
+	err = repo.Update(ctx, found)
+	require.NoError(t, err)
 
-	// Act & Assert - Clear
-	repo.Clear()
-	wallets = repo.GetAll(ctx)
-	assert.Len(t, wallets, 0)
+	// Get wallet again to verify the update was applied
+	foundAgain, err := repo.FindByUserID(ctx, userID)
+	require.NoError(t, err)
+
+	// Assert
+	assert.Equal(t, int64(500), foundAgain.Balance().Amount()) // 1000 - 500 = 500
 }

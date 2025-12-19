@@ -5,13 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"bank/internal/application/mocks"
 	"bank/internal/domain/entity"
 	"bank/internal/domain/valueobject"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
 
 func TestWithdrawUseCase_Withdraw_Success(t *testing.T) {
 	// Arrange
@@ -21,8 +21,8 @@ func TestWithdrawUseCase_Withdraw_Success(t *testing.T) {
 	initialBalance, _ := valueobject.NewMoney(10000) // $100.00
 	wallet := entity.NewWalletWithBalance(userID, initialBalance)
 
-	mockWalletRepo := new(MockWalletRepository)
-	mockTransactionRepo := new(MockTransactionRepository)
+	mockWalletRepo := new(mocks.MockWalletRepository)
+	mockTransactionRepo := new(mocks.MockTransactionRepository)
 
 	usecase := NewWithdrawUseCase(mockWalletRepo, mockTransactionRepo)
 
@@ -56,8 +56,8 @@ func TestWithdrawUseCase_Withdraw_InsufficientFunds(t *testing.T) {
 	initialBalance, _ := valueobject.NewMoney(1000) // $10.00
 	wallet := entity.NewWalletWithBalance(userID, initialBalance)
 
-	mockWalletRepo := new(MockWalletRepository)
-	mockTransactionRepo := new(MockTransactionRepository)
+	mockWalletRepo := new(mocks.MockWalletRepository)
+	mockTransactionRepo := new(mocks.MockTransactionRepository)
 
 	usecase := NewWithdrawUseCase(mockWalletRepo, mockTransactionRepo)
 
@@ -93,14 +93,13 @@ func TestWithdrawUseCase_Withdraw_InvalidAmount(t *testing.T) {
 	assert.True(t, zeroMoney.IsZero())
 }
 
-
 func TestWithdrawUseCase_Withdraw_WalletNotFound(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	userID, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174000")
 
-	mockWalletRepo := new(MockWalletRepository)
-	mockTransactionRepo := new(MockTransactionRepository)
+	mockWalletRepo := new(mocks.MockWalletRepository)
+	mockTransactionRepo := new(mocks.MockTransactionRepository)
 
 	usecase := NewWithdrawUseCase(mockWalletRepo, mockTransactionRepo)
 
@@ -128,8 +127,8 @@ func TestWithdrawUseCase_Withdraw_TransactionSaveFailure(t *testing.T) {
 	initialBalance, _ := valueobject.NewMoney(10000) // $100.00
 	wallet := entity.NewWalletWithBalance(userID, initialBalance)
 
-	mockWalletRepo := new(MockWalletRepository)
-	mockTransactionRepo := new(MockTransactionRepository)
+	mockWalletRepo := new(mocks.MockWalletRepository)
+	mockTransactionRepo := new(mocks.MockTransactionRepository)
 
 	usecase := NewWithdrawUseCase(mockWalletRepo, mockTransactionRepo)
 
@@ -161,8 +160,8 @@ func TestWithdrawUseCase_Withdraw_WalletUpdateFailure(t *testing.T) {
 	initialBalance, _ := valueobject.NewMoney(10000) // $100.00
 	wallet := entity.NewWalletWithBalance(userID, initialBalance)
 
-	mockWalletRepo := new(MockWalletRepository)
-	mockTransactionRepo := new(MockTransactionRepository)
+	mockWalletRepo := new(mocks.MockWalletRepository)
+	mockTransactionRepo := new(mocks.MockTransactionRepository)
 
 	usecase := NewWithdrawUseCase(mockWalletRepo, mockTransactionRepo)
 

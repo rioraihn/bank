@@ -24,19 +24,7 @@ func NewBalanceHandler(walletService service.WalletService) *BalanceHandler {
 	}
 }
 
-// @Summary Get wallet balance
-// @Description Get the current balance for a user's wallet
-// @Tags wallet
-// @Accept json
-// @Produce json
-// @Param user_id query string true "User ID" Format(uuid)
-// @Success 200 {object} dto.BalanceResponse
-// @Failure 400 {object} ErrorResponse
-// @Failure 404 {object} ErrorResponse
-// @Failure 500 {object} ErrorResponse
-// @Router /balance [get]
 func (h *BalanceHandler) HandleGetBalance(w http.ResponseWriter, r *http.Request) {
-	// Get user_id from query parameter
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
 		render.Status(r, http.StatusBadRequest)
@@ -47,7 +35,6 @@ func (h *BalanceHandler) HandleGetBalance(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Validate user ID
 	if err := h.validator.Var(userID, "required,uuid"); err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, ErrorResponse{
@@ -57,7 +44,6 @@ func (h *BalanceHandler) HandleGetBalance(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create domain value object
 	userIDVO, err := valueobject.NewUserID(userID)
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -68,14 +54,11 @@ func (h *BalanceHandler) HandleGetBalance(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create context with timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Execute service
 	response, err := h.walletService.GetBalanceByUserID(ctx, userIDVO)
 	if err != nil {
-		// Handle different types of errors
 		switch {
 		case err.Error() == "invalid user ID format":
 			fallthrough
@@ -105,7 +88,6 @@ func (h *BalanceHandler) HandleGetBalance(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	// Return success response
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, response)
 }

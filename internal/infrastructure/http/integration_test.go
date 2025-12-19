@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -57,8 +56,8 @@ func (ts *TestSetup) createTestWallet(t *testing.T, userID string, balance int64
 	require.NoError(t, err)
 
 	wallet := entity.NewWalletWithBalance(userIDVO, balanceVO)
-	err = ts.WalletRepo.Create(context.Background(), wallet)
-	require.NoError(t, err)
+	// Add wallet using the testing helper method
+	ts.WalletRepo.AddWalletForTesting(wallet)
 }
 
 func TestHealthEndpoint(t *testing.T) {

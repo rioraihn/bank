@@ -13,7 +13,6 @@ type walletService struct {
 	walletRepo repository.WalletRepository
 }
 
-// NewWalletService creates a new wallet service implementation
 func NewWalletService(walletRepo repository.WalletRepository) domainservice.WalletService {
 	return &walletService{
 		walletRepo: walletRepo,

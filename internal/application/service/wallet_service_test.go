@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"bank/internal/application/dto"
+	"bank/internal/application/mocks"
 	"bank/internal/domain/entity"
 	"bank/internal/domain/valueobject"
 
 	"github.com/stretchr/testify/assert"
 )
-
 
 func TestWalletService_GetBalanceByUserID_Success(t *testing.T) {
 	// Arrange
@@ -22,7 +22,7 @@ func TestWalletService_GetBalanceByUserID_Success(t *testing.T) {
 	// Explicitly reference the dto type to ensure the import is used
 	var _ *dto.BalanceResponse = nil
 
-	mockWalletRepo := new(MockWalletRepository)
+	mockWalletRepo := new(mocks.MockWalletRepository)
 	service := NewWalletService(mockWalletRepo)
 
 	// Set up mock expectations
@@ -45,7 +45,7 @@ func TestWalletService_GetBalanceByUserID_WalletNotFound(t *testing.T) {
 	ctx := context.Background()
 	userID, _ := valueobject.NewUserID("123e4567-e89b-12d3-a456-426614174000")
 
-	mockWalletRepo := new(MockWalletRepository)
+	mockWalletRepo := new(mocks.MockWalletRepository)
 	service := NewWalletService(mockWalletRepo)
 
 	// Set up mock expectations

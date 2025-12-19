@@ -37,22 +37,18 @@ func ReconstructWallet(id, userID valueobject.UserID, balance valueobject.Money)
 	}
 }
 
-// ID returns the wallet ID
 func (w *Wallet) ID() valueobject.UserID {
 	return w.id
 }
 
-// UserID returns the user ID
 func (w *Wallet) UserID() valueobject.UserID {
 	return w.userID
 }
 
-// Balance returns the current balance
 func (w *Wallet) Balance() valueobject.Money {
 	return w.balance
 }
 
-// Withdraw withdraws money from the wallet
 func (w *Wallet) Withdraw(amount valueobject.Money) error {
 	if amount.IsZero() {
 		return errors.New("withdraw amount must be greater than zero")
@@ -71,7 +67,6 @@ func (w *Wallet) Withdraw(amount valueobject.Money) error {
 	return nil
 }
 
-// CanWithdraw checks if the wallet can withdraw the given amount
 func (w *Wallet) CanWithdraw(amount valueobject.Money) bool {
 	if amount.IsZero() {
 		return false
