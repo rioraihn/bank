@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go test:*)",
+      "Bash(go mod init:*)",
+      "Bash(go get:*)",
+      "Bash(go build:*)",
+      "Bash(curl:*)",
+      "Bash(./bank-service:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)"
+    ]
+  }
+}
